@@ -1,55 +1,71 @@
-generator client { provider = "prisma-client-js" }
-datasource db { provider = "postgresql" url = env("DATABASE_URL") }
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
 
 model Company {
-  id              String   @id @default(cuid())
-  name            String
-  email           String?  @unique
-  passwordHash    String?
-  systemPrompt    String?
-  botName         String   @default("Assistant")
-  themePrimary    String   @default("#4f46e5") // indigo-600
-  logoUrl         String?
-  suggested       Json?
-  plan            String   @default("free")
-  defaultLang     String   @default("ar")
-  isPaused        Boolean  @default(false)
-  dailyLimit      Int      @default(500)
-  monthlyLimit    Int      @default(5000)
-  watermarkEnabled Boolean @default(false)
-  createdAt       DateTime @default(now())
-  usages          Usage[]
-  docs            Document[]
-  otps            Otp[]
+  id               String    @id @default(cuid())
+  name             String
+  email            String?   @unique
+  passwordHash     String?
+  systemPrompt     String?
+  botName          String    @default("Assistant")
+  themePrimary     String    @default("#4f46e5")
+  logoUrl          String?
+  suggested        Json?
+  plan             String    @default("free")
+  defaultLang      String    @default("ar")
+  isPaused         Boolean   @default(false)
+  dailyLimit       Int       @default(500)
+  monthlyLimit     Int       @default(5000)
+  watermarkEnabled Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+
+  usages  Usage[]
+  docs    Document[]
+  otps    Otp[]
 }
 
 model Usage {
-  id         String   @id @default(cuid())
-  company    Company  @relation(fields: [companyId], references: [id])
-  companyId  String
-  date       DateTime @default(now())
-  count      Int      @default(0)
-  monthKey   String   @default("")
-  @@index([companyId, date])
+  id           String   @id @default(cuid())
+  company      Company  @relation(fields: [companyId], references: [id])
+  companyId    String
+  date         DateTime @default(now())
+  dailyCount   Int      @default(0)
+  monthlyCount Int      @default(0)
+
+  @@index([companyId])
+  @@index([date])
 }
 
 model Document {
-  id         String   @id @default(cuid())
-  company    Company  @relation(fields: [companyId], references: [id])
-  companyId  String
-  title      String
-  url        String?
-  content    String?
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  company   Company  @relation(fields: [companyId], references: [id])
+  companyId String
+  title     String
+  url       String
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
 }
 
 model Otp {
-  id         String   @id @default(cuid())
-  company    Company? @relation(fields: [companyId], references: [id])
-  companyId  String?
-  email      String
-  code       String
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
+  id        String    @id @default(cuid())
+  company   Company?  @relation(fields: [companyId], references: [id])
+  companyId String?
+  email     String
+  code      String
+  expiresAt DateTime
+  used      Boolean   @default(false)
+  createdAt DateTime  @default(now())
+
+  @@index([companyId])
   @@index([email])
+  @@index([expiresAt])
 }
