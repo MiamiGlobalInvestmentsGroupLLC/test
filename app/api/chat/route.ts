@@ -1,4 +1,4 @@
-// ✅ نسخة نظيفة ومتوافقة مع السكيمة الحالية (بدون count)
+// ✅ نسخة تعمل مع Prisma بدون monthKey — حساب الشهري عبر createdAt
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
@@ -14,50 +14,45 @@ export async function POST(req: NextRequest) {
       return new Response(JSON.stringify({ error: 'BAD_REQUEST' }), { status: 400 });
     }
 
-    // 1) تحقق من الشركة والحدود
+    // 1) الشركة والحدود
     const company = await prisma.company.findUnique({ where: { id: companyId } });
-    if (!company) {
-      return new Response(JSON.stringify({ error: 'COMPANY_NOT_FOUND' }), { status: 404 });
-    }
-    if (company.isPaused) {
-      return new Response(JSON.stringify({ error: 'PAUSED' }), { status: 403 });
-    }
+    if (!company) return new Response(JSON.stringify({ error: 'COMPANY_NOT_FOUND' }), { status: 404 });
+    if (company.isPaused) return new Response(JSON.stringify({ error: 'PAUSED' }), { status: 403 });
 
-    // 2) احسب مفاتيح الزمن للحصر الشهري/اليومي (السكيمة الحالية فيها monthKey فقط)
+    // 2) حساب بداية ونهاية الشهر الحالي
     const now = new Date();
-    const monthKey = `${now.getFullYear()}-${now.getMonth() + 1}`; // مثال: 2025-9
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-    // 3) عدّ الاستعمال الشهري من خلال count() بدل حقل count
+    // 3) عدّ الاستعمال الشهري عبر createdAt (بدون monthKey)
     const monthlyUsed = await prisma.usage.count({
-      where: { companyId, monthKey },
+      where: {
+        companyId,
+        createdAt: { gte: startOfMonth, lt: startOfNextMonth },
+      },
     });
 
-    if (company.monthlyLimit !== null && company.monthlyLimit !== undefined) {
-      if (monthlyUsed >= company.monthlyLimit) {
-        return new Response(JSON.stringify({ error: 'MONTH_LIMIT_REACHED' }), { status: 429 });
-      }
+    if (company.monthlyLimit != null && monthlyUsed >= company.monthlyLimit) {
+      return new Response(JSON.stringify({ error: 'MONTH_LIMIT_REACHED' }), { status: 429 });
     }
 
-    // 4) سجّل هذه الرسالة كسطر جديد (بدون count)
-    await prisma.usage.create({
-      data: { companyId, monthKey }, // ✅ فقط هذول الحقول مع createdAt الافتراضي
-    });
+    // 4) تسجيل استخدام جديد (حقل companyId فقط — createdAt افتراضي)
+    await prisma.usage.create({ data: { companyId } });
 
-    // 5) ردّ (هنا رد بسيط؛ اربطه بمزوّدك لاحقًا)
+    // 5) رد تجريبي (اربطه بمزوّدك لاحقًا)
     const reply =
       '✅ تم استلام سؤالك!\n\n' +
-      '• شكراً لتجربتك البوت.\n' +
-      '• رح نجاوبك بشكل منظّم وبنقاط واضحة.\n' +
-      '🤖 (نص تجريبي — اربطه بـ DeepSeek في مرحلة التشغيل)';
+      '• شكراً لتجربة البوت.\n' +
+      '• هذا رد تجريبي منظّم بنقاط.\n' +
+      '🤖 اربط الـ API بديبسيك داخل هذا المسار لاحقًا.';
 
-    // Stream-like بسيط (SSE) عشان يظل الـ UI نفسه يشتغل
+    // SSE مبسّط
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       start(controller) {
-        // chunk واحد فقط كمثال
         const chunk = `data: ${JSON.stringify({ choices: [{ delta: { content: reply } }] })}\n\n`;
         controller.enqueue(encoder.encode(chunk));
-        controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
         controller.close();
       },
     });
