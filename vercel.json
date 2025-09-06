@@ -1,0 +1,5 @@
+{
+  "routes": [
+    { "src": "/embed/widget.js", "headers": { "cache-control": "public, max-age=300" } }
+  ]
+}
