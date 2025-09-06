@@ -4,8 +4,7 @@
 import { Suspense, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const dynamic = 'force-dynamic'; // نحولها داينامك وننهي مشكلة الـ prerender
 
 function EmbedInner() {
   const sp = useSearchParams();
@@ -13,7 +12,7 @@ function EmbedInner() {
   const mountRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // نظّف أي سكربت قديم
+    // نظّف أي سكربت سابق
     document.getElementById('mgi-embed-script')?.remove();
 
     // احقن سكربت الودجت مع companyId
@@ -22,7 +21,6 @@ function EmbedInner() {
     s.async = true;
     s.src = `/embed/widget.js?companyId=${encodeURIComponent(cid)}`;
 
-    // اركّبه داخل الحاوية
     mountRef.current?.appendChild(s);
 
     return () => {
